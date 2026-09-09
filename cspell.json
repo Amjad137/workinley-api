@@ -1,0 +1,114 @@
+{
+    "version": "0.2",
+    "language": "en",
+    "words": [
+        "nestjs",
+        "mongodb",
+        "mongoose",
+        "swagger",
+        "pino",
+        "bcryptjs",
+        "passport",
+        "jwt",
+        "multer",
+        "cors",
+        "helmet",
+        "compression",
+        "throttler",
+        "class-validator",
+        "class-transformer",
+        "nestjs-command",
+        "nestjs-i18n",
+        "nestjs-pino",
+        "pino-http",
+        "pino-pretty",
+        "response-time",
+        "tsconfig-paths",
+        "ts-prune",
+        "stop-only",
+        "rxjs-marbles",
+        "supertest",
+        "ts-jest",
+        "ts-node",
+        "typescript-eslint",
+        "eslint-config-prettier",
+        "lint-staged",
+        "husky",
+        "commitlint",
+        "cspell",
+        "prettier",
+        "rimraf",
+        "yarn",
+        "blogora",
+        "amjath"
+    ],
+    "ignoreWords": [],
+    "import": [],
+    "ignorePaths": [
+        "node_modules/**",
+        "dist/**",
+        "coverage/**",
+        "logs/**",
+        "data/**",
+        "src/metadata.ts",
+        "*.min.js",
+        "*.min.css"
+    ],
+    "dictionaries": [
+        "typescript",
+        "node",
+        "npm",
+        "html",
+        "css",
+        "bash",
+        "dockerfile",
+        "yaml",
+        "json"
+    ],
+    "dictionaryDefinitions": [],
+    "languageSettings": [
+        {
+            "languageId": "typescript",
+            "dictionaries": ["typescript", "node", "npm"]
+        },
+        {
+            "languageId": "javascript",
+            "dictionaries": ["typescript", "node", "npm"]
+        },
+        {
+            "languageId": "json",
+            "dictionaries": ["json", "node", "npm"]
+        },
+        {
+            "languageId": "yaml",
+            "dictionaries": ["yaml", "node", "npm"]
+        },
+        {
+            "languageId": "html",
+            "dictionaries": ["html", "css", "typescript", "node", "npm"]
+        },
+        {
+            "languageId": "css",
+            "dictionaries": ["css", "html", "typescript", "node", "npm"]
+        },
+        {
+            "languageId": "markdown",
+            "dictionaries": ["typescript", "node", "npm", "html", "css"]
+        },
+        {
+            "languageId": "dockerfile",
+            "dictionaries": ["dockerfile", "bash", "node", "npm"]
+        },
+        {
+            "languageId": "shellscript",
+            "dictionaries": ["bash", "node", "npm"]
+        }
+    ],
+    "overrides": [
+        {
+            "filename": "**/*.md",
+            "languageId": "markdown",
+            "dictionaries": ["typescript", "node", "npm", "html", "css"]
+        }
+    ]
+}

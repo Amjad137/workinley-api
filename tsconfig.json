@@ -1,0 +1,78 @@
+{
+    "compilerOptions": {
+        "module": "CommonJS",
+        "declaration": true,
+        "removeComments": true,
+        "emitDecoratorMetadata": true,
+        "experimentalDecorators": true,
+        "allowSyntheticDefaultImports": true,
+        "useDefineForClassFields": false,
+        "target": "ESNext",
+        "sourceMap": true,
+        "inlineSources": true,
+        "sourceRoot": "/",
+        "outDir": "./dist",
+        "baseUrl": "./",
+        "incremental": true,
+        "skipLibCheck": true,
+        "allowJs": false,
+        "esModuleInterop": true,
+        "moduleResolution": "node",
+        "resolveJsonModule": true,
+        "strictNullChecks": false,
+        "noImplicitAny": false,
+        "paths": {
+            "@app/*": [
+                "src/app/*"
+            ],
+            "@auth": [
+                "src/auth/index.ts"
+            ],
+            "@common/*": [
+                "src/common/*"
+            ],
+            "@configs/*": [
+                "src/configs/*"
+            ],
+            "@config": [
+                "src/configs/index.ts"
+            ],
+            "@database/*": [
+                "src/database/*"
+            ],
+            "@modules/*": [
+                "src/modules/*"
+            ],
+            "@routes/*": [
+                "src/router/routes/*"
+            ],
+            "@router": [
+                "src/router/router.module.ts"
+            ],
+            "@workers/*": [
+                "src/worker/*"
+            ],
+            "@test/*": [
+                "test/*"
+            ],
+            "@generated/prisma": [
+                "src/database/generated/client"
+            ],
+            "@app/swagger": [
+                "src/swagger.ts"
+            ]
+        }
+    },
+    "include": [
+        "src/**/*",
+        "test/**/*"
+    ],
+    "exclude": [
+        "node_modules",
+        "dist",
+        "coverage",
+        "logs",
+        "data",
+        "src/metadata.ts"
+    ]
+}

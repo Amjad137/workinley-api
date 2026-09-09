@@ -1,0 +1,67 @@
+{
+    "$schema": "https://swc.rs/schema.json",
+    "sourceMaps": true,
+    "module": {
+        "type": "commonjs"
+    },
+    "jsc": {
+        "baseUrl": "./",
+        "paths": {
+            "@app/*": [
+                "src/app/*"
+            ],
+            "@auth": [
+                "src/auth/index.ts"
+            ],
+            "@common/*": [
+                "src/common/*"
+            ],
+            "@configs/*": [
+                "src/configs/*"
+            ],
+            "@config": [
+                "src/configs/index.ts"
+            ],
+            "@database/*": [
+                "src/database/*"
+            ],
+            "@modules/*": [
+                "src/modules/*"
+            ],
+            "@routes/*": [
+                "src/router/routes/*"
+            ],
+            "@router": [
+                "src/router/router.module.ts"
+            ],
+            "@workers/*": [
+                "src/worker/*"
+            ],
+            "@test/*": [
+                "test/*"
+            ],
+            "@generated/prisma": [
+                "src/database/generated/client"
+            ]
+        },
+        "target": "esnext",
+        "parser": {
+            "syntax": "typescript",
+            "decorators": true,
+            "dynamicImport": true
+        },
+        "transform": {
+            "legacyDecorator": true,
+            "decoratorMetadata": true
+        }
+    },
+    "minify": false,
+    "exclude": [
+        "node_modules",
+        "dist",
+        "coverage",
+        "templates",
+        "src/metadata.ts",
+        "logs"
+    ]
+}
