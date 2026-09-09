@@ -14,6 +14,7 @@
         "format:check": "prettier --check '{src,test}/**/*.{ts,json,yml,yaml}' && prettier --check '*.{ts,json,yml,yaml,mjs}'",
         "start": "nest start",
         "start:local": "yarn env:copy:local && clear && nest start --watch",
+        "seed": "ts-node -r tsconfig-paths/register src/database/seed.ts",
         "start:prod": "yarn env:copy:production && clear && nest start --watch",
         "start:qa": "yarn env:copy:qa && nest start --watch",
         "env:copy:local": "cp .env.local .env",

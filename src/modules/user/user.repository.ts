@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma } from '@generated/prisma';
+import { Prisma, UserRole } from '@generated/prisma';
 import { PrismaService } from '@database/prisma.service';
 
 @Injectable()
@@ -59,6 +59,33 @@ export class UserRepository {
         return this.prisma.db.user.update({
             where: { id },
             data: { isActive: false },
+        });
+    }
+
+    countActiveUsers(role: UserRole = UserRole.USER) {
+        return this.prisma.db.user.count({
+            where: { isActive: true, role },
+        });
+    }
+
+    findActiveUsers(role: UserRole = UserRole.USER) {
+        return this.prisma.db.user.findMany({
+            where: { isActive: true, role },
+            select: { id: true, name: true, email: true, image: true },
+        });
+    }
+
+    findMemberUser(userId: string) {
+        return this.prisma.db.user.findUnique({
+            where: { id: userId },
+            select: {
+                id: true,
+                name: true,
+                email: true,
+                image: true,
+                role: true,
+                createdAt: true,
+            },
         });
     }
 }

@@ -32,9 +32,10 @@ export const auth = betterAuth({
                 required: false,
             },
 
-            // Server-owned fields — cannot be set via API input
+            // Server-owned fields - cannot be set via API input
             role: {
-                // Derived from the Prisma enum — stays in sync automatically
+                // Derived from the Prisma enum - stays in sync automatically
+                // Includes: USER | MANAGER | ADMIN
                 type: Object.values(UserRole) as [string, ...string[]],
                 required: false,
                 defaultValue: UserRole.USER,

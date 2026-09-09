@@ -2,12 +2,65 @@ generator client {
   provider     = "prisma-client"
   output       = "./generated"
   moduleFormat = "cjs"
-  // moduleFormat = "cjs" is required — NestJS is CommonJS, Prisma v7 defaults to ESM
+  // moduleFormat = "cjs" is required - NestJS is CommonJS, Prisma v7 defaults to ESM
 }
 
 datasource db {
   provider = "postgresql"
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Enums
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum UserRole {
+  USER
+  MANAGER
+  ADMIN
+}
+
+enum ReportStatus {
+  DRAFT
+  SUBMITTED
+  NEEDS_CORRECTION
+  APPROVED
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum TaskStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+  BLOCKED
+}
+
+enum ReviewAction {
+  APPROVE
+  REQUEST_CHANGES
+}
+
+enum ProjectStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+enum HoursCategory {
+  DEVELOPMENT
+  TESTING
+  MEETINGS
+  DOCUMENTATION
+  OTHER
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Better Auth models (required - do not rename/remove)
+// ─────────────────────────────────────────────────────────────────────────────
 
 model User {
   id            String   @id @default(cuid())
@@ -26,6 +79,10 @@ model User {
 
   sessions Session[]
   accounts Account[]
+
+  // App relations
+  reports WeeklyReport[]
+  reviews ReportReview[]
 
   @@map("users")
 }
@@ -76,7 +133,186 @@ model Verification {
   @@map("verifications")
 }
 
-enum UserRole {
-  USER
-  ADMIN
+// ─────────────────────────────────────────────────────────────────────────────
+// Application models
+// ─────────────────────────────────────────────────────────────────────────────
+model Project {
+  id          String        @id @default(cuid())
+  name        String
+  code        String        @unique
+  description String?
+  color       String        @default("#3B82F6")
+  status      ProjectStatus @default(ACTIVE)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  reports      WeeklyReport[]
+  tasks        ReportTask[]
+  plannedTasks ReportPlannedTask[]
+
+  @@map("projects")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Core report
+// ─────────────────────────────────────────────────────────────
+model WeeklyReport {
+  id             String       @id @default(cuid())
+  userId         String
+  projectId      String?
+  weekStartDate  DateTime
+  weekEndDate    DateTime
+  weekNumber     Int
+  year           Int
+  status         ReportStatus @default(DRAFT)
+  currentVersion Int          @default(1)
+
+  notes String? // optional markdown notes
+  links String[] // optional reference links (native Postgres array)
+
+  submittedAt DateTime?
+  reviewedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  tasks        ReportTask[]
+  plannedTasks ReportPlannedTask[]
+  blockers     ReportBlocker[]
+  achievements ReportAchievement[]
+  hoursEntries ReportHours[]
+  versions     ReportVersion[]
+  reviews      ReportReview[]
+
+  // One report per user per week
+  @@unique([userId, weekNumber, year])
+  @@index([userId, status])
+  @@index([weekNumber, year])
+  @@map("weekly_reports")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Task-level table (this week)
+// ─────────────────────────────────────────────────────────────
+model ReportTask {
+  id                       String       @id @default(cuid())
+  reportId                 String
+  projectId                String?
+  name                     String
+  priority                 TaskPriority @default(MEDIUM)
+  status                   TaskStatus   @default(IN_PROGRESS)
+  plannedCompletionPercent Int          @default(0)
+  actualCompletionPercent  Int          @default(0)
+  plannedHours             Float        @default(0)
+  actualHours              Float        @default(0)
+  deliverable              String? // link, doc URL, or short description of output
+  orderIndex               Int          @default(0)
+  createdAt                DateTime     @default(now())
+  updatedAt                DateTime     @updatedAt
+
+  report  WeeklyReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  project Project?     @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  @@index([reportId])
+  @@map("report_tasks")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Tasks planned for next week — same structural pattern as ReportTask,
+// minus the fields that don't apply yet (no "actual" values exist)
+// ─────────────────────────────────────────────────────────────
+model ReportPlannedTask {
+  id           String       @id @default(cuid())
+  reportId     String
+  projectId    String?
+  name         String
+  priority     TaskPriority @default(MEDIUM)
+  plannedHours Float        @default(0)
+  orderIndex   Int          @default(0)
+  createdAt    DateTime     @default(now())
+
+  report  WeeklyReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  project Project?     @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  @@index([reportId])
+  @@map("report_planned_tasks")
+}
+
+model ReportBlocker {
+  id          String   @id @default(cuid())
+  reportId    String
+  description String
+  isKeyIssue  Boolean  @default(false)
+  orderIndex  Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  report WeeklyReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  @@index([reportId])
+  @@map("report_blockers")
+}
+
+model ReportAchievement {
+  id               String   @id @default(cuid())
+  reportId         String
+  description      String
+  isKeyAchievement Boolean  @default(false)
+  orderIndex       Int      @default(0)
+  createdAt        DateTime @default(now())
+
+  report WeeklyReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  @@index([reportId])
+  @@map("report_achievements")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Hours breakdown
+// ─────────────────────────────────────────────────────────────
+model ReportHours {
+  id       String        @id @default(cuid())
+  reportId String
+  category HoursCategory
+  hours    Float
+
+  report WeeklyReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  @@unique([reportId, category])
+  @@index([reportId])
+  @@map("report_hours")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Versioning / review 
+// ─────────────────────────────────────────────────────────────
+model ReportVersion {
+  id            String   @id @default(cuid())
+  reportId      String
+  versionNumber Int
+  snapshotData  Json // immutable point-in-time snapshot of the full report
+  submitterNote String?
+  submittedAt   DateTime @default(now())
+
+  report WeeklyReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  @@unique([reportId, versionNumber])
+  @@map("report_versions")
+}
+
+model ReportReview {
+  id            String       @id @default(cuid())
+  reportId      String
+  reviewerId    String
+  versionNumber Int // Which version this review was made against
+  action        ReviewAction
+  comment       String
+  createdAt     DateTime     @default(now())
+
+  report   WeeklyReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  reviewer User         @relation(fields: [reviewerId], references: [id], onDelete: Cascade)
+
+  @@index([reportId])
+  @@map("report_reviews")
 }

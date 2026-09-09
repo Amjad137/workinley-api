@@ -3,7 +3,7 @@
 /node_modules
 /build
 
-# Prisma generated client (build artifact — regenerated via yarn db:generate)
+# Prisma generated client (build artifact - regenerated via yarn db:generate)
 /src/database/generated/
 
 # Logs

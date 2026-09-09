@@ -2,6 +2,9 @@ import { Module } from '@nestjs/common';
 import { UserModule } from '@modules/user/user.module';
 import { HealthModule } from '@modules/health/health.module';
 import { S3Module } from '@modules/s3/s3.module';
+import { ProjectModule } from '@modules/projects/project.module';
+import { ReportModule } from '@modules/reports/report.module';
+import { AnalyticsModule } from '@modules/analytics/analytics.module';
 
 // Note: The global AuthGuard is registered by AuthModule.forRoot() in AppModule
 // via @thallesp/nestjs-better-auth. No manual APP_GUARD provider needed here.
@@ -9,7 +12,21 @@ import { S3Module } from '@modules/s3/s3.module';
 @Module({
     controllers: [],
     providers: [],
-    imports: [UserModule, HealthModule, S3Module],
-    exports: [UserModule, HealthModule, S3Module],
+    imports: [
+        UserModule,
+        HealthModule,
+        S3Module,
+        ProjectModule,
+        ReportModule,
+        AnalyticsModule,
+    ],
+    exports: [
+        UserModule,
+        HealthModule,
+        S3Module,
+        ProjectModule,
+        ReportModule,
+        AnalyticsModule,
+    ],
 })
-export class RouterModule { }
+export class RouterModule {}

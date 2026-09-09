@@ -20,7 +20,7 @@ import { ServerResponse } from 'http';
             envFilePath: ['.env'],
         }),
 
-        // Database — global Prisma module (replaces MongooseModule.forRootAsync)
+        // Database - global Prisma module (replaces MongooseModule.forRootAsync)
         PrismaModule,
 
         // Cache

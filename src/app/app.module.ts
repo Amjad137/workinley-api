@@ -9,7 +9,7 @@ import { ResponseInterceptor } from '@common/response/interceptors/response.inte
 
 @Module({
     imports: [
-        // better-auth mounts all /api/auth/* routes — no NestJS AuthController needed
+        // better-auth mounts all /api/auth/* routes - no NestJS AuthController needed
         AuthModule.forRoot({
             auth,
             bodyParser: { json: { limit: '2mb' } },

@@ -14,7 +14,7 @@ import cookieParser from 'cookie-parser';
 import { ResponseWithBody } from '@common/response/interfaces/response.interface';
 
 async function bootstrap() {
-    // Validate env FIRST — before NestJS boots.
+    // Validate env FIRST - before NestJS boots.
     const classEnv = plainToInstance(AppEnvDto, process.env);
     const envErrors = await validate(classEnv, { stopAtFirstError: false });
     if (envErrors.length > 0) {
@@ -28,7 +28,7 @@ async function bootstrap() {
     const app: NestApplication = await NestFactory.create(AppModule, {
         abortOnError: false,
         bufferLogs: false,
-        bodyParser: false, // Required — better-auth handles its own body parsing
+        bodyParser: false, // Required - better-auth handles its own body parsing
     });
 
     const configService = app.get(ConfigService);
@@ -92,7 +92,7 @@ async function bootstrap() {
     await app.listen(port, host);
 
     // app.getUrl() returns the actual bound address (e.g. http://127.0.0.1:8000)
-    // This is the internal bind address — correct for local logs.
+    // This is the internal bind address - correct for local logs.
     const serverUrl = (await app.getUrl()).replace('[::1]', host);
 
     logger.log(`Env            : ${env}`);

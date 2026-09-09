@@ -12,5 +12,5 @@ const pool = new Pool({
 const adapter = new PrismaPg(pool);
 
 // Single PrismaClient instance shared across the entire process.
-// Do NOT import PrismaClient anywhere else — always import from here.
+// Do NOT import PrismaClient anywhere else - always import from here.
 export const prismaClient = new PrismaClient({ adapter });
