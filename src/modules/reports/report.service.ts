@@ -21,7 +21,8 @@ import {
     ReportQueryDto,
     HoursBreakdownDto,
 } from './dtos/report.dto';
-import { IPaginationResult } from '@database/interfaces/database.interface';
+import { ENTITY_SORT, IPaginationResult } from '@database/interfaces/database.interface';
+import { SORT_REPORT_BY } from './interfaces/report.interface';
 
 @Injectable()
 export class ReportService {
@@ -47,13 +48,29 @@ export class ReportService {
 
     // List my reports (team member)
     async findMyReports(userId: string, query: ReportQueryDto): Promise<IPaginationResult<WeeklyReport>> {
-        const { page = 1, limit = 20, search, sortBy = 'weekStartDate', sortOrder = 'desc', status, year } = query;
+        const {
+            page = 1,
+            limit = 20,
+            search,
+            sortBy = SORT_REPORT_BY.WEEK_START_DATE,
+            sortOrder = ENTITY_SORT.DESC,
+            status,
+            year,
+            createdFrom,
+            createdTo,
+        } = query;
         const skip = (page - 1) * limit;
+
+        const createdAt = {
+            ...(createdFrom ? { gte: new Date(createdFrom) } : {}),
+            ...(createdTo ? { lte: new Date(createdTo) } : {}),
+        };
 
         const where: Prisma.WeeklyReportWhereInput = {
             userId,
             ...(status ? { status } : {}),
             ...(year ? { year } : {}),
+            ...(Object.keys(createdAt).length > 0 ? { createdAt } : {}),
             ...(search
                 ? {
                     OR: [
@@ -88,15 +105,22 @@ export class ReportService {
             page = 1,
             limit = 20,
             search,
-            sortBy = 'weekStartDate',
-            sortOrder = 'desc',
+            sortBy = SORT_REPORT_BY.WEEK_START_DATE,
+            sortOrder = ENTITY_SORT.DESC,
             status,
             year,
             weekNumber,
             userId,
             projectId,
+            createdFrom,
+            createdTo,
         } = query;
         const skip = (page - 1) * limit;
+
+        const createdAt = {
+            ...(createdFrom ? { gte: new Date(createdFrom) } : {}),
+            ...(createdTo ? { lte: new Date(createdTo) } : {}),
+        };
 
         const where: Prisma.WeeklyReportWhereInput = {
             ...(status ? { status } : {}),
@@ -104,6 +128,7 @@ export class ReportService {
             ...(weekNumber ? { weekNumber } : {}),
             ...(userId ? { userId } : {}),
             ...(projectId ? { projectId } : {}),
+            ...(Object.keys(createdAt).length > 0 ? { createdAt } : {}),
             ...(search
                 ? {
                     OR: [

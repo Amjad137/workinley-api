@@ -29,10 +29,9 @@ import { User } from '@generated/prisma';
 @ApiBearerAuth()
 @Controller('reports')
 export class ReportController {
-    constructor(private readonly reportService: ReportService) {}
+    constructor(private readonly reportService: ReportService) { }
 
-    // ── Team Member endpoints ─────────────────────────────────────────────────
-
+    // Team Member endpoints
     @Get('my')
     @ApiOperation({ summary: 'Get my own reports (Team Member)' })
     findMyReports(@CurrentUser() user: User, @Query() query: ReportQueryDto) {
@@ -74,8 +73,7 @@ export class ReportController {
         return this.reportService.remove(id, user);
     }
 
-    // ── Manager / Admin endpoints ─────────────────────────────────────────────
-
+    // Manager / Admin endpoints
     @Roles(Role.MANAGER, Role.ADMIN)
     @UseGuards(RolesGuard)
     @Get('manager/all')

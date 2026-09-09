@@ -7,3 +7,8 @@ export interface IReplaceReportRelationsData {
     achievements?: Prisma.ReportAchievementCreateManyInput[];
     hoursEntries?: Prisma.ReportHoursCreateManyInput[];
 }
+
+export enum SORT_REPORT_BY {
+    WEEK_START_DATE = 'weekStartDate',
+    CREATED_AT = 'createdAt',
+}

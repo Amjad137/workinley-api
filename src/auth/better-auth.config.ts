@@ -1,10 +1,19 @@
 import { betterAuth } from 'better-auth';
+import { admin } from 'better-auth/plugins';
+import { APIError } from 'better-auth/api';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 import { prismaClient } from '@database/prisma.client';
 import { UserRole } from '@generated/prisma';
 
 export const auth = betterAuth({
     database: prismaAdapter(prismaClient, { provider: 'postgresql' }),
+
+    plugins: [
+        admin({
+            defaultRole: UserRole.USER,
+            adminRoles: [UserRole.ADMIN],
+        }),
+    ],
 
     emailAndPassword: {
         enabled: true,
@@ -18,6 +27,66 @@ export const auth = betterAuth({
         cookieCache: {
             enabled: true,
             maxAge: 5 * 60, // 5 minutes
+        },
+    },
+
+    databaseHooks: {
+        user: {
+            create: {
+                before: async (user, ctx) => {
+                    const invitationCode = ctx?.body?.invitationCode as string | undefined;
+                    const address =
+                        (ctx?.body?.address as string | undefined) ||
+                        ((user as Record<string, unknown>).address as string | undefined);
+
+                    if (!invitationCode) {
+                        return {
+                            data: {
+                                ...user,
+                                role: UserRole.USER,
+                                ...(address ? { address } : {}),
+                            },
+                        };
+                    }
+
+                    const invitation = await prismaClient.userInvitation.findUnique({
+                        where: { invitationCode },
+                    });
+
+                    if (!invitation || invitation.isUsed || invitation.expiresAt < new Date()) {
+                        throw new APIError('BAD_REQUEST', {
+                            message: 'Invalid, expired, or already used invitation code.',
+                        });
+                    }
+
+                    if (user.email.toLowerCase() !== invitation.email.toLowerCase()) {
+                        throw new APIError('BAD_REQUEST', {
+                            message: 'Email address does not match the invitation.',
+                        });
+                    }
+
+                    return {
+                        data: {
+                            ...user,
+                            role: invitation.role,
+                            ...(address ? { address } : {}),
+                        },
+                    };
+                },
+                after: async (user, ctx) => {
+                    const invitationCode = ctx?.body?.invitationCode as string | undefined;
+                    if (invitationCode) {
+                        await prismaClient.userInvitation.update({
+                            where: { invitationCode },
+                            data: {
+                                isUsed: true,
+                                usedAt: new Date(),
+                                usedById: user.id,
+                            },
+                        });
+                    }
+                },
+            },
         },
     },
 

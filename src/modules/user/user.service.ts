@@ -17,12 +17,28 @@ export class UserService {
     }
 
     async findAll(query?: IPaginationQuery): Promise<IPaginationResult<UserResponseDto>> {
-        const { page = 1, limit = 20, search, sortBy = 'createdAt', sortOrder = 'desc' } =
-            query ?? {};
+        const {
+            page = 1,
+            limit = 20,
+            search,
+            sortBy = 'createdAt',
+            sortOrder = 'desc',
+            status,
+            createdFrom,
+            createdTo,
+        } = query ?? {};
         const skip = (page - 1) * limit;
 
+        const createdAt = {
+            ...(createdFrom ? { gte: new Date(createdFrom) } : {}),
+            ...(createdTo ? { lte: new Date(createdTo) } : {}),
+        };
+
         const where: Prisma.UserWhereInput = {
-            isActive: true,
+            ...(status !== undefined
+                ? { isActive: status === 'ACTIVE' || status === 'true' }
+                : { isActive: true }),
+            ...(Object.keys(createdAt).length > 0 ? { createdAt } : {}),
             ...(search && {
                 OR: [
                     { name: { contains: search, mode: 'insensitive' } },

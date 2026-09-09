@@ -2,8 +2,10 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { ReportStatus } from '@generated/prisma';
 import { AnalyticsRepository } from './analytics.repository';
 import { UserRepository } from '@modules/user/user.repository';
+import { ENTITY_SORT, IPaginationResult } from '@database/interfaces/database.interface';
 import {
     WeekQueryDto,
+    ComplianceQueryDto,
     VelocityQueryDto,
     ActivityQueryDto,
     IDashboardSummary,
@@ -159,27 +161,38 @@ export class AnalyticsService {
     }
 
     /**
-     * Team compliance matrix for a given week
+     * Team compliance matrix for a given week 
      */
-    async getComplianceMatrix(query?: WeekQueryDto): Promise<IComplianceMatrixUser[]> {
+    async getComplianceMatrix(query?: ComplianceQueryDto): Promise<IPaginationResult<IComplianceMatrixUser>> {
         const { weekNumber, year } = this.resolveWeekAndYear(query);
+        const page = query?.page ? Number(query.page) : 1;
+        const limit = query?.limit ? Number(query.limit) : 20;
+        const skip = (page - 1) * limit;
 
-        const [users, reports] = await Promise.all([
-            this.userRepo.findActiveUsers(),
-            this.analyticsRepo.findReportsForCompliance(weekNumber, year),
-        ]);
-
-        const reportByUser = Object.fromEntries(reports.map((r) => [r.userId, r]));
-
-        return users.map((u) => {
-            const report = reportByUser[u.id];
-            return {
-                user: u,
-                status: report?.status ?? 'NOT_STARTED',
-                currentVersion: report?.currentVersion ?? 0,
-                submittedAt: report?.submittedAt ?? null,
-            };
+        const { data, total } = await this.analyticsRepo.findComplianceMatrix({
+            weekNumber,
+            year,
+            skip,
+            take: limit,
+            search: query?.search?.trim(),
+            status: query?.status,
+            sortBy: query?.sortBy,
+            sortOrder: (query?.sortOrder as ENTITY_SORT) ?? ENTITY_SORT.ASC,
         });
+
+        const totalPages = Math.ceil(total / limit);
+
+        return {
+            data,
+            pagination: {
+                total,
+                page,
+                limit,
+                totalPages,
+                hasNext: page < totalPages,
+                hasPrev: page > 1,
+            },
+        };
     }
 
     /**

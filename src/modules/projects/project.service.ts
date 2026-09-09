@@ -6,25 +6,33 @@ import {
 import { Project, ProjectStatus } from '@generated/prisma';
 import { ProjectRepository } from './project.repository';
 import { CreateProjectDto, UpdateProjectDto } from './dtos/project.dto';
-import { IPaginationQuery, IPaginationResult } from '@database/interfaces/database.interface';
+import { ENTITY_SORT, IPaginationQuery, IPaginationResult, SORT_BY } from '@database/interfaces/database.interface';
 
 @Injectable()
 export class ProjectService {
-    constructor(private readonly projectRepo: ProjectRepository) {}
+    constructor(private readonly projectRepo: ProjectRepository) { }
 
     async findAll(query?: IPaginationQuery & { status?: ProjectStatus }): Promise<IPaginationResult<Project>> {
         const {
             page = 1,
             limit = 20,
             search,
-            sortBy = 'createdAt',
-            sortOrder = 'desc',
+            sortBy = SORT_BY.DATE,
+            sortOrder = ENTITY_SORT.DESC,
             status,
+            createdFrom,
+            createdTo,
         } = query ?? {};
         const skip = (page - 1) * limit;
 
+        const createdAt = {
+            ...(createdFrom ? { gte: new Date(createdFrom) } : {}),
+            ...(createdTo ? { lte: new Date(createdTo) } : {}),
+        };
+
         const where = {
             ...(status ? { status } : {}),
+            ...(Object.keys(createdAt).length > 0 ? { createdAt } : {}),
             ...(search
                 ? {
                     OR: [

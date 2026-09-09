@@ -1,3 +1,12 @@
+export enum ENTITY_SORT {
+    ASC = 'asc',
+    DESC = 'desc',
+}
+
+export enum SORT_BY {
+    DATE = 'createdAt',
+}
+
 export interface IPaginationMeta {
     total: number;
     page: number;
@@ -17,5 +26,8 @@ export interface IPaginationQuery {
     limit?: number;
     search?: string;
     sortBy?: string;
-    sortOrder?: 'asc' | 'desc';
+    sortOrder?: ENTITY_SORT;
+    createdFrom?: string | Date;
+    createdTo?: string | Date;
+    status?: string;
 }

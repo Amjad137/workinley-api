@@ -77,29 +77,61 @@ model User {
   isActive    Boolean   @default(true)
   lastLoginAt DateTime?
 
+  // Better Auth admin plugin fields
+  banned      Boolean?  @default(false)
+  banReason   String?
+  banExpires  DateTime?
+
   sessions Session[]
   accounts Account[]
 
   // App relations
-  reports WeeklyReport[]
-  reviews ReportReview[]
+  reports            WeeklyReport[]
+  reviews            ReportReview[]
+  invitationsCreated UserInvitation[] @relation("InvitationsCreated")
+  invitationUsed     UserInvitation?  @relation("InvitationUsedBy")
 
   @@map("users")
 }
 
 model Session {
-  id        String   @id @default(cuid())
-  userId    String
-  token     String   @unique
-  expiresAt DateTime
-  ipAddress String?
-  userAgent String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id             String    @id @default(cuid())
+  userId         String
+  token          String    @unique
+  expiresAt      DateTime
+  ipAddress      String?
+  userAgent      String?
+  impersonatedBy String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("sessions")
+}
+
+model UserInvitation {
+  id             String    @id @default(cuid())
+  email          String
+  role           UserRole  @default(USER)
+  invitationCode String    @unique
+  isUsed         Boolean   @default(false)
+  expiresAt      DateTime
+  usedAt         DateTime?
+
+  invitedById    String?
+  invitedBy      User?     @relation("InvitationsCreated", fields: [invitedById], references: [id], onDelete: SetNull)
+
+  usedById       String?   @unique
+  usedBy         User?     @relation("InvitationUsedBy", fields: [usedById], references: [id], onDelete: SetNull)
+
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([email])
+  @@index([invitationCode])
+  @@index([isUsed])
+  @@map("user_invitations")
 }
 
 model Account {

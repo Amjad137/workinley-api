@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@database/prisma.service';
-import { ReportStatus } from '@generated/prisma';
+import { Prisma, ReportStatus, UserRole } from '@generated/prisma';
+import { ENTITY_SORT } from '@database/interfaces/database.interface';
 
 @Injectable()
 export class AnalyticsRepository {
@@ -89,6 +90,91 @@ export class AnalyticsRepository {
                 submittedAt: true,
             },
         });
+    }
+
+    async findComplianceMatrix(params: {
+        weekNumber: number;
+        year: number;
+        skip: number;
+        take: number;
+        search?: string;
+        status?: string;
+        sortBy?: string;
+        sortOrder?: ENTITY_SORT;
+    }) {
+        const {
+            weekNumber,
+            year,
+            skip,
+            take,
+            search,
+            status,
+            sortBy = 'name',
+            sortOrder = 'asc',
+        } = params;
+
+        const validSortFields = ['name', 'email', 'createdAt'];
+        const orderByField = validSortFields.includes(sortBy) ? sortBy : 'name';
+
+        const where: Prisma.UserWhereInput = {
+            isActive: true,
+            role: UserRole.USER,
+            ...(search
+                ? {
+                    OR: [
+                        { name: { contains: search, mode: 'insensitive' } },
+                        { email: { contains: search, mode: 'insensitive' } },
+                    ],
+                }
+                : {}),
+            ...(status
+                ? status === 'NOT_STARTED'
+                    ? { reports: { none: { weekNumber, year } } }
+                    : { reports: { some: { weekNumber, year, status: status as ReportStatus } } }
+                : {}),
+        };
+
+        const [users, total] = await Promise.all([
+            this.prisma.db.user.findMany({
+                where,
+                select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                    image: true,
+                    reports: {
+                        where: { weekNumber, year },
+                        select: {
+                            status: true,
+                            currentVersion: true,
+                            submittedAt: true,
+                        },
+                        take: 1,
+                    },
+                },
+                skip,
+                take,
+                orderBy: { [orderByField]: sortOrder },
+            }),
+            this.prisma.db.user.count({ where }),
+        ]);
+
+        const data = users.map((u) => {
+            const report = u.reports[0];
+            return {
+                user: {
+                    id: u.id,
+                    name: u.name,
+                    email: u.email,
+                    image: u.image,
+                },
+                status: (report?.status ?? 'NOT_STARTED') as ReportStatus | 'NOT_STARTED',
+                currentVersion: report?.currentVersion ?? 0,
+                submittedAt: report?.submittedAt ?? null,
+            };
+        });
+
+        return { data, total };
     }
 
     findTeamBlockers(weekNumber: number, year: number) {

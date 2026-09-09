@@ -1,7 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsOptional, IsInt, Min, Max, IsString, IsIn } from 'class-validator';
-import { IPaginationQuery } from '@database/interfaces/database.interface';
+import { IsOptional, IsInt, Min, Max, IsString, IsIn, IsDateString, IsEnum } from 'class-validator';
+import { ENTITY_SORT, IPaginationQuery } from '@database/interfaces/database.interface';
 
 export class PaginationQueryDto implements IPaginationQuery {
     @ApiPropertyOptional({
@@ -48,11 +48,35 @@ export class PaginationQueryDto implements IPaginationQuery {
 
     @ApiPropertyOptional({
         description: 'Sort order',
-        enum: ['asc', 'desc'],
-        default: 'desc',
-        example: 'desc',
+        enum: ENTITY_SORT,
+        default: ENTITY_SORT.DESC,
+        example: ENTITY_SORT.DESC,
     })
     @IsOptional()
-    @IsIn(['asc', 'desc'])
-    sortOrder?: 'asc' | 'desc' = 'desc';
+    @IsEnum(ENTITY_SORT)
+    sortOrder?: ENTITY_SORT = ENTITY_SORT.DESC;
+
+    @ApiPropertyOptional({
+        description: 'Filter records created on or after this ISO date string',
+        example: '2025-01-01T00:00:00.000Z',
+    })
+    @IsOptional()
+    @IsDateString()
+    createdFrom?: string;
+
+    @ApiPropertyOptional({
+        description: 'Filter records created on or before this ISO date string',
+        example: '2025-12-31T23:59:59.999Z',
+    })
+    @IsOptional()
+    @IsDateString()
+    createdTo?: string;
+
+    @ApiPropertyOptional({
+        description: 'Status filter',
+        example: 'ACTIVE',
+    })
+    @IsOptional()
+    @IsString()
+    status?: string;
 }

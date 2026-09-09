@@ -2,8 +2,26 @@ import { IsInt, IsOptional, Min, Max } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { ReportStatus, ReviewAction } from '@generated/prisma';
+import { PaginationQueryDto } from '@database/dtos/pagination.dto';
 
 export class WeekQueryDto {
+    @ApiPropertyOptional({ example: 36, description: 'ISO week number (1-53)' })
+    @IsOptional()
+    @Type(() => Number)
+    @IsInt()
+    @Min(1)
+    @Max(53)
+    weekNumber?: number;
+
+    @ApiPropertyOptional({ example: 2025, description: 'Year (e.g. 2025)' })
+    @IsOptional()
+    @Type(() => Number)
+    @IsInt()
+    @Min(2000)
+    year?: number;
+}
+
+export class ComplianceQueryDto extends PaginationQueryDto {
     @ApiPropertyOptional({ example: 36, description: 'ISO week number (1-53)' })
     @IsOptional()
     @Type(() => Number)

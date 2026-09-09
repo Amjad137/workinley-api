@@ -3,7 +3,12 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AnalyticsService } from './analytics.service';
 import { RolesGuard } from '@auth';
 import { Roles, Role } from '@common/decorators/roles.decorator';
-import { WeekQueryDto, VelocityQueryDto, ActivityQueryDto } from './dtos/analytics.dto';
+import {
+    WeekQueryDto,
+    ComplianceQueryDto,
+    VelocityQueryDto,
+    ActivityQueryDto,
+} from './dtos/analytics.dto';
 
 @ApiTags('Analytics')
 @ApiBearerAuth()
@@ -39,7 +44,7 @@ export class AnalyticsController {
 
     @Get('compliance')
     @ApiOperation({ summary: 'Team submission compliance matrix' })
-    compliance(@Query() query: WeekQueryDto) {
+    compliance(@Query() query: ComplianceQueryDto) {
         return this.analyticsService.getComplianceMatrix(query);
     }
 
