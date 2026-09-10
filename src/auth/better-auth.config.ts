@@ -1,5 +1,5 @@
 import { betterAuth } from 'better-auth';
-import { admin } from 'better-auth/plugins';
+import { admin, openAPI } from 'better-auth/plugins';
 import { APIError } from 'better-auth/api';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 import { prismaClient } from '@database/prisma.client';
@@ -13,6 +13,7 @@ export const auth = betterAuth({
             defaultRole: UserRole.USER,
             adminRoles: [UserRole.ADMIN],
         }),
+        openAPI(),
     ],
 
     emailAndPassword: {

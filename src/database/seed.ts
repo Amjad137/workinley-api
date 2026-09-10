@@ -4,7 +4,7 @@
  * Usage: npx ts-node -r tsconfig-paths/register src/database/seed.ts
  */
 import 'dotenv/config';
-import { auth } from '@auth';
+import { auth } from '../auth';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
 import {

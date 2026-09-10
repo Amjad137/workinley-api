@@ -34,7 +34,7 @@
         "db:migrate:prod": "prisma migrate deploy",
         "db:push": "prisma db push",
         "db:studio": "prisma studio",
-        "db:seed": "ts-node src/database/seed.ts",
+        "db:seed": "ts-node -r tsconfig-paths/register src/database/seed.ts",
         "db:reset": "prisma migrate reset",
         "auth:generate": "auth generate --config ./src/auth/better-auth.config.ts --output ./src/database/schema.prisma"
     },
