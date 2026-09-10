@@ -12,6 +12,7 @@ import { Request, Response } from 'express';
 import { RequestValidationException } from '@common/request/exceptions/request.validation.exception';
 import { STATUS_CODES } from 'http';
 import { ApiErrorResponse } from '@common/response/interfaces/response.interface';
+import { Prisma } from '@generated/prisma';
 
 @Catch()
 export class AppGlobalFilter implements ExceptionFilter {
@@ -33,6 +34,15 @@ export class AppGlobalFilter implements ExceptionFilter {
         // Handle HttpException instances
         if (exception instanceof HttpException) {
             this.handleHttpException(exception, request, response);
+            return;
+        }
+
+        // Handle Prisma Known Request Errors
+        if (
+            exception instanceof Prisma.PrismaClientKnownRequestError ||
+            (exception && typeof exception === 'object' && 'code' in exception && String((exception as any).code).startsWith('P'))
+        ) {
+            this.handlePrismaError(exception as Prisma.PrismaClientKnownRequestError, request, response);
             return;
         }
 
@@ -124,6 +134,62 @@ export class AppGlobalFilter implements ExceptionFilter {
         response.status(statusHttp).json(responseBody);
     }
 
+    private handlePrismaError(
+        exception: Prisma.PrismaClientKnownRequestError | { code: string; meta?: any; message?: string },
+        request: Request,
+        response: Response,
+    ): void {
+        let statusCode = HttpStatus.BAD_REQUEST;
+        let message = 'Database operation failed';
+
+        if (exception.code === 'P2002') {
+            statusCode = HttpStatus.CONFLICT;
+            const target = (exception as any).meta?.target;
+            const targetStr = Array.isArray(target) ? target.join(', ') : String(target || '');
+            const constraint =
+                (exception as any).meta?.driverAdapterError?.message ||
+                exception.message ||
+                '';
+
+            if (
+                targetStr.includes('phoneNumber') ||
+                constraint.includes('phoneNumber') ||
+                constraint.includes('users_phoneNumber_key')
+            ) {
+                message = 'Phone number already exists';
+            } else if (
+                targetStr.includes('email') ||
+                constraint.includes('email') ||
+                constraint.includes('users_email_key')
+            ) {
+                message = 'Email already exists';
+            } else if (targetStr) {
+                message = `${targetStr} already exists`;
+            } else {
+                message = 'A record with this value already exists';
+            }
+        } else if (exception.code === 'P2025') {
+            statusCode = HttpStatus.NOT_FOUND;
+            message = 'Record not found';
+        }
+
+        const httpStatusText = this.getHttpStatusText(statusCode);
+
+        const responseBody: ApiErrorResponse = {
+            error: true,
+            message: httpStatusText,
+            data: {
+                message,
+                statusCode,
+                timestamp: new Date().toISOString(),
+                path: request.path,
+            },
+        };
+
+        response.status(statusCode).json(responseBody);
+        this.logger.warn(`${request.method} ${request.path} [Prisma ${exception.code}]: ${message}`);
+    }
+
     private handleGenericError(
         exception: Error,
         request: Request,
@@ -139,6 +205,24 @@ export class AppGlobalFilter implements ExceptionFilter {
         ) {
             statusCode = HttpStatus.BAD_REQUEST;
             message = 'Invalid ObjectId format provided';
+        } else if (
+            exception.message.includes('P2002') ||
+            exception.message.includes('Unique constraint failed')
+        ) {
+            statusCode = HttpStatus.CONFLICT;
+            if (
+                exception.message.includes('phoneNumber') ||
+                exception.message.includes('users_phoneNumber_key')
+            ) {
+                message = 'Phone number already exists';
+            } else if (
+                exception.message.includes('email') ||
+                exception.message.includes('users_email_key')
+            ) {
+                message = 'Email already exists';
+            } else {
+                message = 'A record with this value already exists';
+            }
         }
 
         const httpStatusText = this.getHttpStatusText(statusCode);

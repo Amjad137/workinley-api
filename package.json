@@ -1,7 +1,7 @@
 {
-    "name": "nestjs-api",
+    "name": "workinley-api",
     "version": "1.0.0",
-    "description": "NestJS BoilerPlate API - A modern NestJS BoilerPlate API",
+    "description": "Enterprise-grade Engineering Team Management & Weekly Reporting SaaS API",
     "author": "Amjath",
     "private": true,
     "license": "MIT",

@@ -20,6 +20,13 @@ export const auth = betterAuth({
         enabled: true,
         minPasswordLength: 8,
         autoSignIn: true,
+        sendResetPassword: async ({ user, url, token }) => {
+            console.log('\n======================================================');
+            console.log(`🔑 [Better Auth] Password Reset Requested for: ${user.email}`);
+            console.log(`🔗 Reset URL: ${url}`);
+            console.log(`🎫 Verification Token: ${token}`);
+            console.log('======================================================\n');
+        },
     },
 
     session: {
@@ -35,10 +42,34 @@ export const auth = betterAuth({
         user: {
             create: {
                 before: async (user, ctx) => {
-                    const invitationCode = ctx?.body?.invitationCode as string | undefined;
+                    const body = ctx?.body as {
+                        phoneNumber?: string;
+                        address?: string;
+                        invitationCode?: string;
+                    } | undefined;
+
+                    const phoneNumber = (
+                        (typeof user['phoneNumber'] === 'string' ? user['phoneNumber'] : undefined) ||
+                        (typeof body?.phoneNumber === 'string' ? body.phoneNumber : undefined)
+                    )?.trim();
+
+                    if (phoneNumber) {
+                        const existingUserWithPhone = await prismaClient.user.findUnique({
+                            where: { phoneNumber },
+                        });
+
+                        if (existingUserWithPhone) {
+                            throw new APIError('BAD_REQUEST', {
+                                message: 'Phone number already exists',
+                            });
+                        }
+                    }
+
+                    const invitationCode =
+                        typeof body?.invitationCode === 'string' ? body.invitationCode : undefined;
                     const address =
-                        (ctx?.body?.address as string | undefined) ||
-                        ((user as Record<string, unknown>).address as string | undefined);
+                        (typeof body?.address === 'string' ? body.address : undefined) ||
+                        (typeof user['address'] === 'string' ? user['address'] : undefined);
 
                     if (!invitationCode) {
                         return {
@@ -46,6 +77,7 @@ export const auth = betterAuth({
                                 ...user,
                                 role: UserRole.USER,
                                 ...(address ? { address } : {}),
+                                ...(phoneNumber ? { phoneNumber } : {}),
                             },
                         };
                     }
@@ -71,11 +103,14 @@ export const auth = betterAuth({
                             ...user,
                             role: invitation.role,
                             ...(address ? { address } : {}),
+                            ...(phoneNumber ? { phoneNumber } : {}),
                         },
                     };
                 },
                 after: async (user, ctx) => {
-                    const invitationCode = ctx?.body?.invitationCode as string | undefined;
+                    const body = ctx?.body as { invitationCode?: string } | undefined;
+                    const invitationCode =
+                        typeof body?.invitationCode === 'string' ? body.invitationCode : undefined;
                     if (invitationCode) {
                         await prismaClient.userInvitation.update({
                             where: { invitationCode },
@@ -128,6 +163,13 @@ export const auth = betterAuth({
     trustedOrigins: (process.env.TRUSTED_ORIGINS ?? 'http://localhost:3000').split(','),
     secret: process.env.BETTER_AUTH_SECRET,
     baseURL: process.env.APP_URL,
+
+    onAPIError: {
+        onError(error, ctx) {
+            if (error instanceof APIError) return;
+            console.error('[BetterAuth Error]', error, { ctx });
+        }
+    }
 });
 
 export type Auth = typeof auth;

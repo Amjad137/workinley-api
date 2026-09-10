@@ -46,6 +46,15 @@ export class ReportService {
             .map((key) => ({ category: mapping[key], hours: breakdown[key]! }));
     }
 
+    private getISOWeekAndYear(date: Date): { weekNumber: number; year: number } {
+        const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+        const dayNum = d.getUTCDay() || 7;
+        d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+        const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+        const weekNo = Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
+        return { weekNumber: weekNo, year: d.getUTCFullYear() };
+    }
+
     // List my reports (team member)
     async findMyReports(userId: string, query: ReportQueryDto): Promise<IPaginationResult<WeeklyReport>> {
         const {
@@ -192,10 +201,22 @@ export class ReportService {
 
     // Create draft
     async create(userId: string, dto: CreateReportDto) {
+        let weekNumber = dto.weekNumber;
+        let year = dto.year;
+
+        if (dto.weekStartDate) {
+            const startDate = new Date(dto.weekStartDate);
+            if (!isNaN(startDate.getTime())) {
+                const iso = this.getISOWeekAndYear(startDate);
+                weekNumber = iso.weekNumber;
+                year = iso.year;
+            }
+        }
+
         // Check for duplicate week
-        const existing = await this.reportRepo.findByUserAndWeek(userId, dto.weekNumber, dto.year);
+        const existing = await this.reportRepo.findByUserAndWeek(userId, weekNumber, year);
         if (existing) {
-            throw new ConflictException('A report for this week already exists');
+            throw new ConflictException(`A report for week ${weekNumber} (${year}) already exists`);
         }
 
         const {
@@ -210,8 +231,6 @@ export class ReportService {
             links,
             notes,
             projectId,
-            weekNumber,
-            year,
         } = dto;
 
         const resolvedHours = hoursEntries?.length
@@ -359,11 +378,32 @@ export class ReportService {
             })),
         });
 
+        let updatedWeekNumber = dto.weekNumber;
+        let updatedYear = dto.year;
+
+        if (dto.weekStartDate) {
+            const startDate = new Date(dto.weekStartDate);
+            if (!isNaN(startDate.getTime())) {
+                const iso = this.getISOWeekAndYear(startDate);
+                updatedWeekNumber = iso.weekNumber;
+                updatedYear = iso.year;
+            }
+        }
+
+        if (updatedWeekNumber !== undefined && updatedYear !== undefined) {
+            const existing = await this.reportRepo.findByUserAndWeek(report.userId, updatedWeekNumber, updatedYear);
+            if (existing && existing.id !== id) {
+                throw new ConflictException(`A report for week ${updatedWeekNumber} (${updatedYear}) already exists`);
+            }
+        }
+
         return this.reportRepo.update(id, {
             notes,
             ...(links !== undefined ? { links } : {}),
             ...(weekStartDate ? { weekStartDate: new Date(weekStartDate) } : {}),
             ...(weekEndDate ? { weekEndDate: new Date(weekEndDate) } : {}),
+            ...(updatedWeekNumber !== undefined ? { weekNumber: updatedWeekNumber } : {}),
+            ...(updatedYear !== undefined ? { year: updatedYear } : {}),
             project: projectId ? { connect: { id: projectId } } : undefined,
         });
     }

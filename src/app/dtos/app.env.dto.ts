@@ -85,10 +85,5 @@ export class AppEnvDto {
     @IsString()
     @IsOptional()
     S3_BUCKET_NAME?: string;
-
-    // Middleware Configuration
-    @IsString()
-    @IsOptional()
-    MIDDLEWARE_CORS_ORIGIN?: string;
 }
 

@@ -166,6 +166,10 @@ Expires At:  ${expiresAt.toISOString()}
             throw new NotFoundException('Invitation not found');
         }
 
+        if (invitation.isUsed) {
+            throw new BadRequestException('Cannot revoke an already accepted invitation');
+        }
+
         await this.repository.delete(id);
         return { message: 'Invitation deleted successfully' };
     }

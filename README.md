@@ -1,4 +1,4 @@
-# NestJS BoilerPlate API
+# Workinley API
 
 <div align="center">
 
@@ -10,9 +10,9 @@
 ![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=for-the-badge&logo=docker&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)
 
-**A modern, production-grade RESTful API engineered for high-throughput content management, granular RBAC, and cloud-native file storage.**
+**A high-performance, enterprise-grade RESTful API engineered for weekly engineering reporting, velocity analytics, project tracking, and granular role-based access control.**
 
-[Architecture](#-system-architecture) • [Key Engineering Highlights](#-key-engineering-highlights) • [API Specification](#-api-specification) • [Quick Start](#-getting-started) • [Database & Migrations](#-database--migrations) • [Docker Deployment](#-docker--production-deployment)
+[Architecture](#-system-architecture) • [Engineering Highlights](#-key-engineering-highlights) • [Domain Features](#-domain-features) • [API Specification](#-api-specification) • [Quick Start & Seed](#-getting-started) • [Database & Migrations](#-database--migrations) • [Docker Deployment](#-docker--production-deployment)
 
 </div>
 
@@ -20,67 +20,75 @@
 
 ## 📌 Executive Summary
 
-**NestJS BoilerPlate API** is a modular enterprise backend built on top of **NestJS 11** and **PostgreSQL 16**. Designed with clean architectural boundaries and strict type-safety, it demonstrates senior engineering patterns including:
-- **Prisma 7 with Connection Pooling via `@prisma/adapter-pg`** and single-roundtrip transactional pagination.
-- **Modern Session-Based Authentication** powered by **Better Auth** with cookie caching and server-governed RBAC.
-- **Direct-to-Cloud S3 Storage Architecture** using presigned URLs to offload high-bandwidth I/O from API compute.
-- **Defensive Engineering**: Fail-fast startup environment validation, global standardized response envelopes, and structured JSON observability.
+**Workinley API** is the backend engine powering the Workinley SaaS platform—an enterprise team management system designed for engineering leaders, project managers, and distributed teams. Built with **NestJS 11**, **TypeScript 5.8**, and **PostgreSQL 16**, the system adheres to strict Clean Architecture boundaries and high-throughput production practices:
+
+- **Prisma 7 with Connection Pooling (`@prisma/adapter-pg`)**: Single-roundtrip transactional pagination and optimized snapshot queries.
+- **Session-Based Authentication with Better Auth**: High-speed cookie caching (5-minute TTL), server-owned security fields, and database lifecycle hooks.
+- **Direct-to-Cloud S3 Storage**: Presigned upload and download URLs via AWS SDK v3 to offload binary file I/O from API compute.
+- **Defensive Engineering**: Pre-bootstrap fail-fast environment validation, standardized response envelopes, and structured JSON observability with Pino.
+- **Comprehensive Domain Engine**: Complete workflows for weekly engineering reports, approval workflows, velocity analytics, team invitations, and project management.
 
 ---
 
 ## 🏗 System Architecture
 
-The codebase follows the **Layered Clean Architecture** pattern, strictly decoupling transport, business logic, and database persistence.
+The codebase follows **Layered Clean Architecture**, decoupling transport, authentication guards, domain business logic, and database persistence.
 
 ```mermaid
 flowchart TD
-    Client([HTTP / Browser Client]) -->|Request| Middleware[Middlewares: Helmet / CORS / Pino Logger / URL Versioning]
-    Middleware --> Guard[AuthGuard & RolesGuard - Better Auth RBAC]
-    Guard --> Controller[Controller Layer - DTO Validation via class-validator]
-    Controller --> Service[Service Layer - Business Logic]
-    Service --> Repository[Repository Layer - Query Optimization & Single-Roundtrip Batching]
-    Service --> S3Service[AWS S3 Service - Presigned Upload / Download URLs]
-    Repository --> Prisma[Prisma 7 + PG Connection Pool]
-    Prisma --> Postgres[(PostgreSQL 16)]
-    S3Service -.->|Direct Upload/Download| S3Bucket[(AWS S3 Storage)]
-    Controller --> Interceptor[Response Transform Interceptor]
-    Interceptor -->|Unified JSON Envelope| Client
+    Client([HTTP / Browser Client]) -->|Request| GlobalCORS[Global CORS & Security Layer]
+    GlobalCORS --> BetterAuthNode[Better Auth Engine /api/auth/*]
+    GlobalCORS --> Middlewares[Middlewares: Helmet / BodyParser / Versioning / RequestID]
+    Middlewares --> AuthGuard[Global AuthGuard & RolesGuard - Better Auth RBAC]
+    AuthGuard --> Controllers[Controller Layer - DTO Validation via class-validator]
+    Controllers --> Services[Domain Service Layer - Business Logic]
+    Services --> Repositories[Repository Layer - Single-Roundtrip $transaction]
+    Services --> S3Service[AWS S3 Service - Presigned URLs]
+    Repositories --> PrismaClient[Prisma 7 + Native PG Connection Pool]
+    PrismaClient --> PostgreSQL[(PostgreSQL 16 Database)]
+    S3Service -.->|Direct Upload / Download| S3Bucket[(AWS S3 Storage)]
+    Controllers --> Interceptor[Response Transform Interceptor]
+    Interceptor -->|Standardized JSON Envelope| Client
 ```
 
-### Module Structure
+### Modular Repository Structure
 
 ```
-nestjs-boilerplate/
+workinley-api/
 ├── src/
-│   ├── app/                      # Application orchestration
+│   ├── app/                      # Application lifecycle & orchestration
 │   │   ├── dtos/                 # AppEnvDto (Fail-fast startup environment validator)
 │   │   ├── filters/              # AppGlobalFilter (Standardized error envelope)
-│   │   ├── middlewares/          # Security, body parser, and URL versioning middlewares
+│   │   ├── middlewares/          # Body parser, Helmet security, Request ID, Versioning
+│   │   ├── app.middleware.module.ts # NestJS middleware composition module
 │   │   └── app.module.ts         # Root dependency injection container
-│   ├── auth/                     # Better Auth core configuration & schema hooks
+│   ├── auth/                     # Better Auth configuration, database hooks, & plugins
 │   ├── common/                   # Shared cross-cutting concerns
-│   │   ├── decorators/           # @Roles, @AllowAnonymous, custom parameter decorators
-│   │   ├── request/              # Typed request interfaces (e.g. AppVersionRequest)
+│   │   ├── decorators/           # @Roles, @AllowAnonymous, parameter decorators
+│   │   ├── request/              # Typed request interfaces (AppVersionRequest, etc.)
 │   │   ├── response/             # Response envelope interceptor & pagination contracts
-│   │   └── common.module.ts      # Global Pino logger, CacheManager, Terminus health
+│   │   └── common.module.ts      # Global Pino logger, CacheManager, Terminus
 │   ├── configs/                  # Type-safe registerAs namespaces (app, aws, middleware)
 │   ├── database/                 # Persistence layer
-│   │   ├── generated/            # Type-safe Prisma Client artifact
-│   │   ├── interfaces/           # IPaginationResult, IPaginationMeta
-│   │   ├── prisma.client.ts      # Singleton Prisma client over native pg connection pool
-│   │   ├── prisma.service.ts     # Connection lifecycle hooks ($connect, $disconnect)
-│   │   ├── schema.prisma         # Database schema (User, Session, Account, Verification)
-│   │   └── seed.ts               # Database seeder with sample data
+│   │   ├── generated/            # Generated Prisma Client artifact (CJS output)
+│   │   ├── interfaces/           # IPaginationResult, IPaginationMeta, sort enums
+│   │   ├── prisma.client.ts      # Singleton Prisma Client with pg connection pool
+│   │   ├── prisma.service.ts     # Lifecycle connection manager ($connect, $disconnect)
+│   │   ├── schema.prisma         # Database models (User, Report, Task, Project, etc.)
+│   │   └── seed.ts               # Complete database seeder with realistic test data
 │   ├── modules/                  # Feature domain modules
-│   │   ├── health/               # Terminus health indicators (DB ping)
-│   │   ├── s3/                   # AWS S3 presigned URL generator & object deletion
-│   │   └── user/                 # User domain (Controller, Service, Repository)
-│   ├── router/                   # Centralized routing definitions
-│   ├── main.ts                   # Fast SWC bootstrap with fail-fast env validation
+│   │   ├── analytics/            # Engineering analytics, velocity, hours & compliance
+│   │   ├── health/               # Terminus health checks (PostgreSQL ping)
+│   │   ├── invitations/          # Team invitations, code validation, revoke guards
+│   │   ├── projects/             # Projects registry, color codes, archive/restore
+│   │   ├── reports/              # Weekly reports, tasks, blockers, hours, review workflow
+│   │   ├── s3/                   # AWS S3 presigned upload/download & batch deletion
+│   │   └── user/                 # User domain, admin management, role verification
+│   ├── router/                   # Centralized routing aggregator
+│   ├── main.ts                   # Fast SWC bootstrap with fail-fast env validation & global CORS
 │   └── swagger.ts                # OpenAPI 3.0 / Swagger UI documentation builder
-├── Dockerfile                    # Multi-stage production container (node:22-alpine, non-root user)
-├── prisma.config.ts              # Prisma CLI configuration
-└── tsconfig.json                 # Path aliases (@app, @auth, @common, @configs, @database, etc.)
+├── Dockerfile                    # Security-hardened multi-stage Docker container
+└── tsconfig.json                 # Path aliases (@app, @auth, @common, @modules, etc.)
 ```
 
 ---
@@ -88,45 +96,46 @@ nestjs-boilerplate/
 ## ⚡ Key Engineering Highlights
 
 ### 1. High-Performance Database Access with Prisma 7 & pg-pool
-Instead of unpooled raw queries or separate `Promise.all` count queries that introduce race conditions and multiple round-trips, pagination uses a **single `$transaction` round-trip** inside the repository layer:
+To prevent connection exhaustion and multiple round-trips when fetching paginated data, repositories execute a **single `$transaction` round-trip**:
 
 ```typescript
-// src/modules/user/repository/user.repository.ts
-async findManyWithCount(args: Prisma.UserFindManyArgs, where?: Prisma.UserWhereInput) {
+// src/modules/reports/repository/report.repository.ts
+async findManyWithCount(args: Prisma.WeeklyReportFindManyArgs, where?: Prisma.WeeklyReportWhereInput) {
     return this.prisma.db.$transaction([
-        this.prisma.db.user.findMany(args),
-        this.prisma.db.user.count({ where }),
+        this.prisma.db.weeklyReport.findMany(args),
+        this.prisma.db.weeklyReport.count({ where }),
     ]);
 }
 ```
-- **Single Connection Round-Trip:** Batches query execution into one database interaction.
-- **Consistent Snapshot:** Both queries read against the same transaction state.
+- **Single Connection Round-Trip**: Batches both queries into a single database network call.
+- **Transaction Consistency**: Reads both the item slice and total count against the exact same snapshot.
 
-### 2. Modern Session-Based Auth (Better Auth) with In-Memory Caching
-Uses **Better Auth** alongside `@thallesp/nestjs-better-auth`:
-- **Fast Session Verification:** Employs `cookieCache` (5-minute TTL) to avoid hitting PostgreSQL on every single authenticated request.
-- **Server-Owned Security Fields:** Critical fields such as `role`, `isActive`, and `lastLoginAt` are configured as server-owned (`input: false`) in [better-auth.config.ts](file:///d:/Amjath/My%20Projects/WEB%20Projects/NestJS BoilerPlate/workinley-be/src/auth/better-auth.config.ts), preventing privilege escalation.
-- **Cross-Origin Security:** Enforces explicit `trustedOrigins` and CORS credentials validation.
+### 2. Session-Based Authentication (Better Auth) with Cookie Caching
+Authentication is handled via **Better Auth** with `@thallesp/nestjs-better-auth`:
+- **5-Minute Cookie Cache**: Employs `cookieCache` with a 5-minute TTL to verify active sessions without executing a database lookup on every authenticated request.
+- **Server-Owned Security Attributes**: Sensitive attributes (`role`, `isActive`, `lastLoginAt`) are configured with `input: false`, preventing malicious client elevation.
+- **Database Lifecycle Hooks**: Intercepts `user.create` to enforce unique phone numbers and link pending team invitations automatically.
+- **Global Preflight-Ready CORS**: Configured at the Express application root in `main.ts` with `credentials: true` and origin validation bound to `TRUSTED_ORIGINS`.
 
 ### 3. Direct-to-Cloud S3 Storage via Presigned URLs
-To eliminate API server bottlenecking from large multipart file uploads, the architecture utilizes **AWS S3 Presigned URLs** via the AWS SDK v3:
-- Clients request temporary, signed S3 upload URLs with short TTLs.
-- File bytes stream directly from the browser/client to S3, keeping API CPU and memory usage lightweight.
-- Provides segregated **Public** (profile pictures) and **Protected** (confidential attachments) bucket access patterns.
+Large files, documents, and media never burden API compute. The service uses **AWS SDK v3**:
+- The client requests a signed PUT URL with a short TTL (15 minutes).
+- Bytes stream directly from browser to Amazon S3.
+- Segregated **Public** and **Protected** upload endpoints ensure proper access controls.
 
 ### 4. Zero-Leak Standardized Response & Error Envelopes
-All HTTP responses pass through a global [ResponseInterceptor](file:///d:/Amjath/My%20Projects/WEB%20Projects/NestJS BoilerPlate/workinley-be/src/common/response/interceptors/response.interceptor.ts) and [AppGlobalFilter](file:///d:/Amjath/My%20Projects/WEB%20Projects/NestJS BoilerPlate/workinley-be/src/app/filters/app.global.filter.ts):
+All API responses pass through a global [ResponseInterceptor](file:///d:/Amjath/My%20Projects/WEB%20Projects/Workinley/workinley-api/src/common/response/interceptors/response.interceptor.ts) and [AppGlobalFilter](file:///d:/Amjath/My%20Projects/WEB%20Projects/Workinley/workinley-api/src/app/filters/app.global.filter.ts):
 
 ```json
-// Success Response (Paginated)
+// Paginated Success Envelope
 {
   "error": false,
-  "message": "Users retrieved successfully",
+  "message": "Weekly reports retrieved successfully",
   "data": [ ... ],
   "pagination": {
-    "total": 100,
+    "total": 48,
     "page": 1,
-    "limit": 20,
+    "limit": 10,
     "totalPages": 5,
     "hasNext": true,
     "hasPrev": false
@@ -135,43 +144,127 @@ All HTTP responses pass through a global [ResponseInterceptor](file:///d:/Amjath
 ```
 
 ```json
-// Error Response
+// Standardized Error Envelope
 {
   "error": true,
-  "message": "User with ID 'usr_123' not found",
+  "message": "Cannot revoke an invitation that has already been accepted",
   "data": {
-    "statusCode": 404,
-    "timestamp": "2026-09-09T14:30:00.000Z"
+    "statusCode": 400,
+    "timestamp": "2026-09-10T12:00:00.000Z"
   }
 }
 ```
 
-### 5. Fail-Fast Startup Validation
-Before NestJS dependencies instantiate, [main.ts](file:///d:/Amjath/My%20Projects/WEB%20Projects/NestJS BoilerPlate/workinley-be/src/main.ts) executes class-validator validation against `process.env` through `AppEnvDto`. If required environment variables (e.g. `DATABASE_URL`, `BETTER_AUTH_SECRET`, `APP_URL`) are malformed or missing, the process logs clean errors and terminates immediately.
+### 5. Fail-Fast Startup Environment Validation
+Before the NestJS container boots, `main.ts` validates `process.env` through `AppEnvDto` using `class-validator`. If critical variables (e.g. `DATABASE_URL`, `BETTER_AUTH_SECRET`, `APP_URL`, `TRUSTED_ORIGINS`) are invalid or missing, the process logs clear diagnostic messages and terminates immediately.
+
+---
+
+## 🎯 Domain Features
+
+### 📋 1. Weekly Reporting System
+- **Comprehensive Report Structure**: Week start/end dates, ISO week number, project reference, high-level summary notes, and external links.
+- **Granular Task Management**: Current tasks with planned vs. actual completion percentage, hours spent, priority (`LOW`, `MEDIUM`, `HIGH`, `CRITICAL`), status, and deliverables.
+- **Planned Tasks**: Forward-looking task commitments for subsequent weeks.
+- **Categorized Hours**: Breakdown covering `DEVELOPMENT`, `TESTING`, `MEETINGS`, `DOCUMENTATION`, and `OTHER`.
+- **Blockers & Achievements**: First-class tracking for key blockers and critical achievements.
+- **Review Cycle**: Manager/Admin review actions (`APPROVE`, `REQUEST_CHANGES`) with inline commentary and report status lifecycle management (`DRAFT`, `SUBMITTED`, `NEEDS_CORRECTION`, `APPROVED`).
+
+### 📊 2. Engineering Analytics & Velocity Insights
+- **Executive Summary**: High-level KPI metrics across reports submitted, hours logged, completion velocity, and active projects.
+- **Velocity Engine**: Rolling velocity trends calculating completed tasks, planned vs. actual hours, and delivery percentage over customizable lookback windows.
+- **Workload & Hours Distribution**: Aggregated hours by activity category and project.
+- **Submission Compliance**: Real-time team member submission compliance rates.
+- **Blocker Digest**: Aggregated view of active blockers across all teams.
+- **Member-Specific Stats**: Individual velocity, hours breakdown, and submission streaks.
+
+### 📁 3. Project Management
+- **Registry**: Project names, unique codes (`CAP`, `IPM`), descriptions, and custom hex color identifiers.
+- **Lifecycle Management**: Active project filtering and archiving capabilities with soft-status transitions.
+
+### ✉️ 4. Team Invitations & Onboarding
+- **Tokenized Invitations**: Role pre-assignment (`ADMIN`, `MANAGER`, `USER`) with unique invitation codes.
+- **Lifecycle Guardrails**: Validation endpoint, resend mechanism, and revocation safeguards preventing deletion of already accepted invitations.
 
 ---
 
 ## 📋 API Specification
 
-Comprehensive Swagger / OpenAPI 3.0 documentation is auto-generated and served at:
-**`http://localhost:8000/api/docs`**
+Interactive Swagger / OpenAPI 3.0 documentation is auto-generated and served at:  
+👉 **`http://localhost:8000/api/docs`**
 
-### Key Endpoints
+### Summary of Core Endpoints
 
-| Method | Endpoint | Description | Auth / Access |
+#### Authentication (`/api/auth/*`)
+| Method | Path | Description | Access |
 |---|---|---|---|
-| `POST` | `/api/auth/*` | Better Auth handlers (sign-up, sign-in, sign-out, session) | Public |
-| `GET` | `/api/v1/users/me` | Fetch authenticated user profile | Bearer / Session |
-| `PATCH` | `/api/v1/users/me` | Update authenticated user profile | Bearer / Session |
+| `POST` | `/api/auth/sign-up/email` | Create user with phone number & optional invite code | Public |
+| `POST` | `/api/auth/sign-in/email` | Email & password authentication | Public |
+| `POST` | `/api/auth/sign-out` | Terminate session & clear cookies | Authenticated |
+| `GET` | `/api/auth/get-session` | Retrieve active session & user details | Authenticated |
+
+#### Weekly Reports (`/api/v1/reports`)
+| Method | Path | Description | Access |
+|---|---|---|---|
+| `GET` | `/api/v1/reports/my` | Paginated list of authenticated user's reports | Authenticated |
+| `GET` | `/api/v1/reports/all` | Paginated list of all team reports | `MANAGER`, `ADMIN` |
+| `GET` | `/api/v1/reports/:id` | Get report details by ID | Authenticated |
+| `POST` | `/api/v1/reports` | Create draft weekly report | Authenticated |
+| `PATCH` | `/api/v1/reports/:id` | Update report, tasks, blockers, and hours | Authenticated |
+| `POST` | `/api/v1/reports/:id/submit` | Submit draft report for review | Authenticated |
+| `DELETE`| `/api/v1/reports/:id` | Delete draft report | Authenticated |
+| `POST` | `/api/v1/reports/:id/approve` | Approve submitted report | `MANAGER`, `ADMIN` |
+| `POST` | `/api/v1/reports/:id/request-changes` | Request amendments with review comment | `MANAGER`, `ADMIN` |
+
+#### Engineering Analytics (`/api/v1/analytics`)
+| Method | Path | Description | Access |
+|---|---|---|---|
+| `GET` | `/api/v1/analytics/summary` | Executive summary metrics | Authenticated |
+| `GET` | `/api/v1/analytics/velocity` | Team velocity over weeks | Authenticated |
+| `GET` | `/api/v1/analytics/hours` | Hours distribution across categories | Authenticated |
+| `GET` | `/api/v1/analytics/workload` | Workload allocation by team member | Authenticated |
+| `GET` | `/api/v1/analytics/compliance`| Weekly report submission compliance | Authenticated |
+| `GET` | `/api/v1/analytics/blockers` | Active blockers digest | Authenticated |
+| `GET` | `/api/v1/analytics/activity` | Recent activity stream | Authenticated |
+| `GET` | `/api/v1/analytics/member/:id`| Member performance statistics | Authenticated |
+
+#### Projects (`/api/v1/projects`)
+| Method | Path | Description | Access |
+|---|---|---|---|
+| `GET` | `/api/v1/projects` | List all projects with pagination | Authenticated |
+| `GET` | `/api/v1/projects/active` | List all active projects | Authenticated |
+| `GET` | `/api/v1/projects/:id` | Get project by ID | Authenticated |
+| `POST` | `/api/v1/projects` | Create a new project | `MANAGER`, `ADMIN` |
+| `PATCH` | `/api/v1/projects/:id` | Update project metadata | `MANAGER`, `ADMIN` |
+| `PATCH` | `/api/v1/projects/:id/archive` | Toggle project archive status | `MANAGER`, `ADMIN` |
+| `DELETE`| `/api/v1/projects/:id` | Remove project | `ADMIN` |
+
+#### Team Invitations (`/api/v1/invitations`)
+| Method | Path | Description | Access |
+|---|---|---|---|
+| `POST` | `/api/v1/invitations` | Issue team invitation | `MANAGER`, `ADMIN` |
+| `GET` | `/api/v1/invitations` | List all team invitations | `MANAGER`, `ADMIN` |
+| `GET` | `/api/v1/invitations/validate`| Validate invite code during sign-up | Public |
+| `POST` | `/api/v1/invitations/:id/resend` | Resend pending invitation | `MANAGER`, `ADMIN` |
+| `DELETE`| `/api/v1/invitations/:id` | Revoke invitation | `MANAGER`, `ADMIN` |
+
+#### Users (`/api/v1/users`)
+| Method | Path | Description | Access |
+|---|---|---|---|
+| `GET` | `/api/v1/users/me` | Fetch authenticated user profile | Authenticated |
+| `PATCH` | `/api/v1/users/me` | Update authenticated user profile | Authenticated |
 | `GET` | `/api/v1/users/admin/all` | List users with search, sort & pagination | `ADMIN` only |
 | `GET` | `/api/v1/users/admin/:id` | Fetch specific user by ID | `ADMIN` only |
-| `PATCH` | `/api/v1/users/admin/:id` | Admin update user data / role | `ADMIN` only |
-| `DELETE`| `/api/v1/users/admin/:id` | Soft-delete / deactivate user | `ADMIN` only |
-| `POST` | `/api/v1/s3/public-upload` | Generate presigned URLs for public assets | Bearer / Session |
-| `POST` | `/api/v1/s3/protected-upload` | Generate presigned URLs for private files | Bearer / Session |
-| `GET` | `/api/v1/s3/file-url/:key` | Get authorized S3 read URL | Bearer / Session |
-| `DELETE`| `/api/v1/s3/files` | Batch delete files from S3 | Bearer / Session |
-| `GET` | `/api/v1/health` | Terminus liveness check (PostgreSQL health) | Public |
+| `PATCH` | `/api/v1/users/admin/:id` | Update user role or status | `ADMIN` only |
+| `DELETE`| `/api/v1/users/admin/:id` | Deactivate / soft-delete user | `ADMIN` only |
+
+#### Cloud Storage (`/api/v1/s3`)
+| Method | Path | Description | Access |
+|---|---|---|---|
+| `POST` | `/api/v1/s3/public-upload` | Presigned upload URL for public assets | Authenticated |
+| `POST` | `/api/v1/s3/secure-upload` | Presigned upload URL for confidential files | Authenticated |
+| `GET` | `/api/v1/s3/file-url/:key` | Presigned download URL | Authenticated |
+| `DELETE`| `/api/v1/s3/files` | Batch delete files from S3 | Authenticated |
 
 ---
 
@@ -179,27 +272,30 @@ Comprehensive Swagger / OpenAPI 3.0 documentation is auto-generated and served a
 
 ### Prerequisites
 - **Node.js**: `>= 20.11.0` (LTS recommended)
-- **Package Manager**: **Yarn** (`>= 1.22.22` or Yarn Berry)
-- **Database**: **PostgreSQL 14+**
-- **AWS S3 Bucket** (for file storage features)
+- **Package Manager**: **Yarn** (`>= 1.22.22`)
+- **PostgreSQL**: Version 14 or higher (local service or Docker)
+- **AWS S3**: Optional (required for file upload features)
+
+---
 
 ### 1. Clone & Install Dependencies
 
 ```bash
-git clone https://github.com/your-username/workinley-be.git
-cd workinley-be
+cd workinley-api
 yarn install
 ```
 
-### 2. Environment Setup
+---
 
-Copy the sample environment file to `.env.local`:
+### 2. Environment Configuration
+
+Copy the example environment file:
 
 ```bash
 cp .env.example .env.local
 ```
 
-Configure your local environment variables in `.env.local`:
+Configure `.env.local` with your database and environment settings:
 
 ```env
 # Application
@@ -217,54 +313,68 @@ APP_URL_VERSION=1
 DATABASE_URL="postgresql://postgres:password@localhost:5432/workinley_dev"
 
 # Authentication (Better Auth)
-BETTER_AUTH_SECRET=your-64-character-random-hex-secret
+BETTER_AUTH_SECRET=07e9737947757687de7f4ee42d4027bb6c67bb380ceabb0f47c7804ebb966078
 TRUSTED_ORIGINS=http://localhost:3000,http://localhost:8000
 
-# CORS
-MIDDLEWARE_CORS_ORIGIN=http://localhost:3000
-
-# AWS S3
+# AWS S3 (Optional for local development)
 AWS_REGION=us-east-1
 AWS_ACCESS_KEY_ID=your-aws-access-key
 AWS_SECRET_ACCESS_KEY=your-aws-secret-key
 S3_BUCKET_NAME=your-s3-bucket
 ```
 
+---
+
 ### 3. Database Migration & Seeding
 
+Apply migrations to initialize your PostgreSQL schema, then run the database seed script:
+
 ```bash
-# Run migrations to bring PostgreSQL up to date
+# Run Prisma migrations
 yarn db:migrate
 
-# Seed database with sample users and credentials
+# Seed the database with users, projects, weekly reports, hours, and blockers
 yarn db:seed
 ```
 
-### 4. Start Development Server
+#### 🔑 Seeded Demo Credentials
+
+| Role | Email | Password | Phone Number | Responsibilities |
+| :--- | :--- | :--- | :--- | :--- |
+| **Admin** | `admin@workinley.dev` | `Admin@1234` | `+15550001111` | Full administrative oversight, project config, user roles |
+| **Manager** | `manager@workinley.dev` | `Manager@1234` | `+15550002222` | Review weekly reports, request changes, approve submissions |
+| **Member** | `alex.chen@workinley.dev` | `Member@1234` | `+15550003331` | Log tasks, submit weekly reports, track hours |
+| **Member** | `david.ross@workinley.dev` | `Member@1234` | `+15550003332` | Log tasks, submit weekly reports, track hours |
+| **Member** | `priya.nair@workinley.dev` | `Member@1234` | `+15550003333` | Log tasks, submit weekly reports, track hours |
+
+---
+
+### 4. Start the Development Server
 
 ```bash
-# Copies .env.local -> .env and starts the SWC watch server
+# Copies .env.local -> .env and launches the SWC hot-reload development server
 yarn start:local
 ```
 
-Access the application:
-- **API Base**: `http://localhost:8000/api/v1`
+The API will be available at:
+- **Base Endpoint**: `http://localhost:8000/api/v1`
 - **Swagger Documentation**: `http://localhost:8000/api/docs`
+- **Health Check**: `http://localhost:8000/api/v1/health`
 
 ---
 
 ## 🗄 Database & Migrations
 
-Database operations are managed cleanly via Prisma CLI:
+Database operations are managed cleanly through the Prisma CLI scripts:
 
 ```bash
-yarn db:generate     # Regenerates Prisma Client (@generated/prisma)
-yarn db:migrate      # Applies migrations in development
-yarn db:migrate:prod # Runs pending migrations in production (prisma migrate deploy)
-yarn db:push         # Push schema state without generating a migration file
-yarn db:studio       # Launch Prisma Studio web GUI to browse records
-yarn db:seed         # Run database seeding script
-yarn db:reset        # Drops database, re-runs migrations, and seeds
+yarn db:generate     # Regenerates the type-safe Prisma Client (@generated/prisma)
+yarn db:migrate      # Applies migrations in development mode
+yarn db:migrate:prod # Applies migrations in production (prisma migrate deploy)
+yarn db:push         # Synchronizes schema state with database without generating migration
+yarn db:studio       # Launches Prisma Studio web GUI to browse records
+yarn db:seed         # Runs database seeding script
+yarn db:reset        # Resets database, re-applies migrations, and seeds
 ```
 
 ---
@@ -273,10 +383,10 @@ yarn db:reset        # Drops database, re-runs migrations, and seeds
 
 | Script | Purpose |
 |---|---|
-| `yarn start:local` | Launches dev server with hot reload via SWC (loads `.env.local`) |
+| `yarn start:local` | Launches development server with hot reload via SWC (loads `.env.local`) |
 | `yarn start:qa` | Launches dev server with `.env.qa` |
-| `yarn build` | Compiles production bundle to `/dist` via SWC compiler |
 | `yarn start:prod` | Runs production build with `.env.production` |
+| `yarn build` | Compiles production bundle to `/dist` via SWC compiler |
 | `yarn test` | Executes Jest test suites |
 | `yarn lint` | Runs ESLint 9 checks across codebase |
 | `yarn lint:fix` | Automatically resolves fixable ESLint errors |
@@ -284,27 +394,27 @@ yarn db:reset        # Drops database, re-runs migrations, and seeds
 | `yarn format:check` | Verifies formatting without modifying files |
 | `yarn spell` | CSpell dictionary inspection on codebase |
 | `yarn deadcode` | Detects unused exports using `ts-prune` |
-| `yarn clean` | Cleans `dist`, node cache, and builds |
+| `yarn clean` | Cleans `/dist`, cache directories, and builds |
 
 ---
 
 ## 🐳 Docker & Production Deployment
 
-NestJS BoilerPlate is packaged with a security-hardened, multi-stage [Dockerfile](file:///d:/Amjath/My%20Projects/WEB%20Projects/NestJS BoilerPlate/workinley-be/Dockerfile):
-- **Base image**: Minimalist `node:22-alpine` for lightweight footprint.
-- **Dependency isolation**: Separates build tooling (`@swc`, `typescript`) from runtime dependencies (`npm prune --production`).
-- **Security**: Runs under an unprivileged user (`nestjs:nodejs`, UID 1001) rather than root.
+Workinley API is packaged with a security-hardened, multi-stage `Dockerfile`:
+- **Base Image**: Minimalist `node:22-alpine` for lightweight footprint and minimal attack surface.
+- **Dependency Isolation**: Separates build tools (`@swc`, `typescript`) from runtime production dependencies.
+- **Least Privilege**: Runs under an unprivileged user (`nestjs:nodejs`, UID 1001) rather than root.
 
 ### Build and Run with Docker
 
 ```bash
-# Build the production image
+# Build the production Docker image
 docker build -t workinley-api:latest .
 
 # Run container
 docker run -d \
   --name workinley-api \
-  -p 8080:8080 \
+  -p 8000:8000 \
   --env-file .env.production \
   workinley-api:latest
 ```
@@ -313,10 +423,10 @@ docker run -d \
 
 ## 🛡 Security & Code Quality Standards
 
-- **Conventional Commits**: Enforced via **Husky** and **Commitlint** (`@commitlint/config-conventional`).
-- **Type Safety**: Strictly typed interfaces with zero tolerance for `any` types.
-- **Sanitization & Validation**: All HTTP payloads are parsed through `ValidationPipe` with `{ whitelist: true, forbidNonWhitelisted: true, transform: true }`.
-- **Security Headers & Rate Limiting**: Standardized with Helmet, CORS origin whitelisting, and `@nestjs/throttler` (10 req / 500ms sliding window).
+- **Strict Type Safety**: Fully typed DTOs, parameters, and return signatures with zero tolerance for `any` types.
+- **Input Sanitization**: All incoming HTTP payloads pass through `ValidationPipe` configured with `{ whitelist: true, forbidNonWhitelisted: true, transform: true }`.
+- **Security Headers & Rate Limiting**: Enforced via Helmet, origin-restricted CORS with credentials, and `@nestjs/throttler` (10 requests per 500ms sliding window).
+- **Structured Observability**: Structured JSON logging powered by **Pino** with correlated request IDs.
 
 ---
 

@@ -13,7 +13,6 @@ import {
     AppTextBodyParserMiddleware,
     AppUrlencodedBodyParserMiddleware,
 } from '@app/middlewares/app.body-parser.middleware';
-import { AppCorsMiddleware } from '@app/middlewares/app.cors.middleware';
 import { AppHelmetMiddleware } from '@app/middlewares/app.helmet.middleware';
 import { AppRequestIdMiddleware } from '@app/middlewares/app.request-id.middleware';
 import { AppResponseTimeMiddleware } from '@app/middlewares/app.response-time.middleware';
@@ -57,7 +56,6 @@ export class AppMiddlewareModule implements NestModule {
                 AppTextBodyParserMiddleware,
                 AppRawBodyParserMiddleware,
                 AppUrlencodedBodyParserMiddleware,
-                AppCorsMiddleware,
                 AppUrlVersionMiddleware,
                 AppResponseTimeMiddleware,
             )

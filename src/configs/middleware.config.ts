@@ -53,7 +53,10 @@ export default registerAs(
                 'HEAD',
                 'OPTIONS',
             ],
-            allowOrigin: process.env.MIDDLEWARE_CORS_ORIGIN?.split(',') ?? [],
+            allowOrigin: (process.env.TRUSTED_ORIGINS ?? 'http://localhost:3000')
+                .split(',')
+                .map((o) => o.trim())
+                .filter(Boolean),
             allowHeader: [
                 'Accept',
                 'Accept-Language',

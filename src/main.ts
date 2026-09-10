@@ -54,6 +54,26 @@ async function bootstrap() {
     // logger
     app.useLogger(app.get(PinoLogger));
 
+    // CORS - Must be enabled at application level to handle OPTIONS preflight across all routes
+    const corsOrigin = configService.get<string | string[]>('middleware.cors.allowOrigin');
+    const corsMethods = configService.get<string[]>('middleware.cors.allowMethod');
+    const corsHeaders = configService.get<string[]>('middleware.cors.allowHeader');
+
+    app.enableCors({
+        origin: corsOrigin,
+        methods: corsMethods ?? [
+            'GET',
+            'HEAD',
+            'PUT',
+            'PATCH',
+            'POST',
+            'DELETE',
+            'OPTIONS',
+        ],
+        allowedHeaders: corsHeaders,
+        credentials: true,
+    });
+
     // Compression
     app.use(compression());
 
