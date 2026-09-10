@@ -10,6 +10,7 @@ import {
     Prisma,
     ReportStatus,
     ReviewAction,
+    TaskPriority,
     User,
     UserRole,
     WeeklyReport,
@@ -44,6 +45,24 @@ export class ReportService {
         return (Object.keys(mapping) as (keyof HoursBreakdownDto)[])
             .filter((key) => breakdown[key] !== undefined && breakdown[key] !== null)
             .map((key) => ({ category: mapping[key], hours: breakdown[key]! }));
+    }
+
+    private mapNextWeekPlansToTasks(
+        nextWeekPlans?: string,
+        projectId?: string,
+    ): { name: string; priority: TaskPriority; plannedHours: number; projectId: string | null; orderIndex: number }[] {
+        if (!nextWeekPlans?.trim()) return [];
+        const lines = nextWeekPlans
+            .split('\n')
+            .map((line) => line.replace(/^[-*•\d.)\s]+/, '').trim())
+            .filter((line) => line.length > 0);
+        return lines.map((name, i) => ({
+            name,
+            priority: TaskPriority.MEDIUM,
+            plannedHours: 0,
+            projectId: projectId?.trim() ? projectId.trim() : null,
+            orderIndex: i,
+        }));
     }
 
     private getISOWeekAndYear(date: Date): { weekNumber: number; year: number } {
@@ -222,6 +241,7 @@ export class ReportService {
         const {
             tasks,
             plannedTasks,
+            nextWeekPlans,
             blockers,
             achievements,
             hoursEntries,
@@ -236,6 +256,16 @@ export class ReportService {
         const resolvedHours = hoursEntries?.length
             ? hoursEntries
             : this.mapHoursBreakdownToEntries(hoursBreakdown);
+
+        const resolvedPlannedTasks = plannedTasks?.length
+            ? plannedTasks.map((pt, i) => ({
+                name: pt.name,
+                priority: pt.priority ?? TaskPriority.MEDIUM,
+                plannedHours: pt.plannedHours ?? 0,
+                projectId: pt.projectId?.trim() ? pt.projectId.trim() : (projectId?.trim() ? projectId.trim() : null),
+                orderIndex: pt.orderIndex ?? i,
+            }))
+            : this.mapNextWeekPlansToTasks(nextWeekPlans, projectId);
 
         return this.reportRepo.create({
             weekNumber,
@@ -257,20 +287,14 @@ export class ReportService {
                         plannedHours: t.plannedHours ?? 0,
                         actualHours: t.actualHours ?? t.spentHours ?? 0,
                         deliverable: t.deliverable,
-                        projectId: t.projectId,
+                        projectId: t.projectId?.trim() ? t.projectId.trim() : (projectId?.trim() ? projectId.trim() : null),
                         orderIndex: t.orderIndex ?? i,
                     })),
                 }
                 : undefined,
-            plannedTasks: plannedTasks?.length
+            plannedTasks: resolvedPlannedTasks.length
                 ? {
-                    create: plannedTasks.map((pt, i) => ({
-                        name: pt.name,
-                        priority: pt.priority,
-                        plannedHours: pt.plannedHours ?? 0,
-                        projectId: pt.projectId,
-                        orderIndex: pt.orderIndex ?? i,
-                    })),
+                    create: resolvedPlannedTasks,
                 }
                 : undefined,
             blockers: blockers?.length
@@ -319,6 +343,7 @@ export class ReportService {
         const {
             tasks,
             plannedTasks,
+            nextWeekPlans,
             blockers,
             achievements,
             hoursEntries,
@@ -336,6 +361,22 @@ export class ReportService {
                 ? this.mapHoursBreakdownToEntries(hoursBreakdown)
                 : undefined;
 
+        const resolvedPlannedTasks = plannedTasks !== undefined
+            ? plannedTasks.map((pt, i) => ({
+                reportId: id,
+                name: pt.name,
+                priority: pt.priority ?? TaskPriority.MEDIUM,
+                plannedHours: pt.plannedHours ?? 0,
+                projectId: pt.projectId?.trim() ? pt.projectId.trim() : (projectId?.trim() ? projectId.trim() : null),
+                orderIndex: pt.orderIndex ?? i,
+            }))
+            : nextWeekPlans !== undefined
+                ? this.mapNextWeekPlansToTasks(nextWeekPlans, projectId).map((pt) => ({
+                    reportId: id,
+                    ...pt,
+                }))
+                : undefined;
+
         // Atomically replace nested relations via repository
         await this.reportRepo.replaceReportRelations(id, {
             tasks: tasks?.map((t, i) => ({
@@ -348,17 +389,10 @@ export class ReportService {
                 plannedHours: t.plannedHours ?? 0,
                 actualHours: t.actualHours ?? t.spentHours ?? 0,
                 deliverable: t.deliverable,
-                projectId: t.projectId,
+                projectId: t.projectId?.trim() ? t.projectId.trim() : (projectId?.trim() ? projectId.trim() : null),
                 orderIndex: t.orderIndex ?? i,
             })),
-            plannedTasks: plannedTasks?.map((pt, i) => ({
-                reportId: id,
-                name: pt.name,
-                priority: pt.priority,
-                plannedHours: pt.plannedHours ?? 0,
-                projectId: pt.projectId,
-                orderIndex: pt.orderIndex ?? i,
-            })),
+            plannedTasks: resolvedPlannedTasks,
             blockers: blockers?.map((b, i) => ({
                 reportId: id,
                 description: b.description,
