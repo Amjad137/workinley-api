@@ -82,7 +82,17 @@ export class ReportService {
         };
 
         const [data, total] = await this.reportRepo.findManyWithCount(
-            { where, skip, take: limit, orderBy: { [sortBy]: sortOrder } },
+            {
+                where,
+                skip,
+                take: limit,
+                orderBy: { [sortBy]: sortOrder },
+                include: {
+                    user: { select: { id: true, name: true, email: true, image: true } },
+                    project: { select: { id: true, name: true, code: true, color: true } },
+                    tasks: { select: { id: true, status: true } },
+                },
+            },
             where,
         );
 
@@ -141,7 +151,17 @@ export class ReportService {
         };
 
         const [data, total] = await this.reportRepo.findManyWithCount(
-            { where, skip, take: limit, orderBy: { [sortBy]: sortOrder } },
+            {
+                where,
+                skip,
+                take: limit,
+                orderBy: { [sortBy]: sortOrder },
+                include: {
+                    user: { select: { id: true, name: true, email: true, image: true } },
+                    project: { select: { id: true, name: true, code: true, color: true } },
+                    tasks: { select: { id: true, status: true } },
+                },
+            },
             where,
         );
 

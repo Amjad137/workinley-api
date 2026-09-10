@@ -3,11 +3,40 @@ import {
     IsOptional,
     IsString,
     IsPhoneNumber,
+    IsArray,
+    IsBoolean,
+    IsEnum,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { PartialType, OmitType } from '@nestjs/mapped-types';
 import { BaseDto } from '@database/dtos/base.dto';
+import { PaginationQueryDto } from '@database/dtos/pagination.dto';
 import { UserRole } from '@generated/prisma';
+
+export class UserQueryDto extends PaginationQueryDto {
+    @ApiPropertyOptional({ enum: UserRole, example: UserRole.USER })
+    @IsOptional()
+    @IsEnum(UserRole)
+    role?: UserRole;
+}
+
+export class UserCountQueryDto {
+    @ApiPropertyOptional({ enum: UserRole, example: UserRole.USER, description: 'Filter count by role' })
+    @IsOptional()
+    @IsEnum(UserRole)
+    role?: UserRole;
+}
+
+export class VerifyUsersDto {
+    @ApiProperty({ example: ['cuid1', 'cuid2'] })
+    @IsArray()
+    @IsString({ each: true })
+    userIDs: string[];
+
+    @ApiProperty({ example: true })
+    @IsBoolean()
+    verification: boolean;
+}
 
 export class UpdateUserDto {
     @ApiPropertyOptional({ example: 'John' })

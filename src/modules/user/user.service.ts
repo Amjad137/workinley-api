@@ -1,8 +1,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma, User } from '@generated/prisma';
+import { Prisma, User, UserRole } from '@generated/prisma';
 import { UserRepository } from '@modules/user/user.repository';
-import { UpdateUserDto, UserResponseDto } from '@modules/user/dtos/user.dto';
-import { IPaginationQuery, IPaginationResult } from '@database/interfaces/database.interface';
+import { UpdateUserDto, UserQueryDto, UserResponseDto, VerifyUsersDto } from '@modules/user/dtos/user.dto';
+import { IPaginationResult } from '@database/interfaces/database.interface';
 
 @Injectable()
 export class UserService {
@@ -16,7 +16,14 @@ export class UserService {
         return this.toResponseDto(user);
     }
 
-    async findAll(query?: IPaginationQuery): Promise<IPaginationResult<UserResponseDto>> {
+    async count(role?: UserRole): Promise<number> {
+        return this.userRepository.count({
+            isActive: true,
+            ...(role ? { role } : {}),
+        });
+    }
+
+    async findAll(query?: UserQueryDto): Promise<IPaginationResult<UserResponseDto>> {
         const {
             page = 1,
             limit = 20,
@@ -24,6 +31,7 @@ export class UserService {
             sortBy = 'createdAt',
             sortOrder = 'desc',
             status,
+            role,
             createdFrom,
             createdTo,
         } = query ?? {};
@@ -38,6 +46,7 @@ export class UserService {
             ...(status !== undefined
                 ? { isActive: status === 'ACTIVE' || status === 'true' }
                 : { isActive: true }),
+            ...(role ? { role } : {}),
             ...(Object.keys(createdAt).length > 0 ? { createdAt } : {}),
             ...(search && {
                 OR: [
@@ -86,6 +95,17 @@ export class UserService {
             throw new NotFoundException('User not found');
         }
         await this.userRepository.softDelete(id);
+    }
+
+    async verifyUsers(dto: VerifyUsersDto): Promise<{ message: string; verifiedProfileIDs: string[] }> {
+        await this.userRepository.updateMany(
+            { id: { in: dto.userIDs } },
+            { emailVerified: dto.verification },
+        );
+        return {
+            message: 'Users verification status updated successfully',
+            verifiedProfileIDs: dto.userIDs,
+        };
     }
 
     async updateLastLogin(id: string): Promise<void> {

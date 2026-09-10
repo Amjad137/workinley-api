@@ -48,6 +48,10 @@ export class UserRepository {
         return this.prisma.db.user.update({ where: { id }, data });
     }
 
+    updateMany(where: Prisma.UserWhereInput, data: Prisma.UserUpdateManyMutationInput) {
+        return this.prisma.db.user.updateMany({ where, data });
+    }
+
     updateLastLogin(id: string) {
         return this.prisma.db.user.update({
             where: { id },

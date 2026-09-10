@@ -43,6 +43,7 @@ export class AnalyticsController {
     }
 
     @Get('compliance')
+    @Roles(Role.USER, Role.MANAGER, Role.ADMIN)
     @ApiOperation({ summary: 'Team submission compliance matrix' })
     compliance(@Query() query: ComplianceQueryDto) {
         return this.analyticsService.getComplianceMatrix(query);
@@ -61,6 +62,7 @@ export class AnalyticsController {
     }
 
     @Get('member/:userId')
+    @Roles(Role.USER, Role.MANAGER, Role.ADMIN)
     @ApiOperation({ summary: 'Individual member stats and history' })
     memberStats(@Param('userId') userId: string) {
         return this.analyticsService.getMemberStats(userId);
